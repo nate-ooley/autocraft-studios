@@ -1,0 +1,489 @@
+{
+  "name": "Video Pipeline — Script → HeyGen → GHL Distribute",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "triggerAtHour": 6 },
+            { "triggerAtHour": 10 },
+            { "triggerAtHour": 14 },
+            { "triggerAtHour": 18 }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron 4x Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": {
+          "value": "={{$env.GOOGLE_SHEET_ID}}"
+        },
+        "sheetName": "Topics",
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "queued"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "id": "read-topic",
+      "name": "Get Next Topic",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [220, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.topic }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-topic",
+      "name": "Topic Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": {
+          "value": "={{$env.GOOGLE_SHEET_ID}}"
+        },
+        "sheetName": "Topics",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "scripting"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "update-status-scripting",
+      "name": "Status → Scripting",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [660, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.CLAUDE_API_KEY}}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6-20250514\",\n  \"max_tokens\": 1024,\n  \"system\": \"You are a video scriptwriter for short-form avatar videos. Given a topic and style notes, write a script for an AI avatar to deliver on camera. Output ONLY valid JSON with no markdown formatting:\\n\\n{\\n  \\\"title\\\": \\\"video title for social media post\\\",\\n  \\\"script\\\": \\\"the full spoken script the avatar will say, 60-90 seconds when read aloud\\\",\\n  \\\"description\\\": \\\"social media post caption, 2-3 engaging sentences with a hook\\\",\\n  \\\"hashtags\\\": [\\\"#tag1\\\", \\\"#tag2\\\", \\\"#tag3\\\", \\\"#tag4\\\", \\\"#tag5\\\"]\\n}\\n\\nRules:\\n- Open with a hook in the first sentence\\n- Conversational tone, speaking directly to camera\\n- End with a clear call to action\\n- No stage directions — just the spoken words\\n- Keep under 200 words for 60-90 second delivery\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"Topic: {{ $json.topic }}\\nStyle: {{ $json.style_notes || 'casual and engaging, under 90 seconds' }}\"}]\n}"
+      },
+      "id": "claude-script",
+      "name": "Claude — Generate Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the JSON script from Claude's response\nconst response = $input.first().json;\nconst textContent = response.content[0].text;\n\n// Parse the JSON from Claude's output\nlet scriptData;\ntry {\n  scriptData = JSON.parse(textContent);\n} catch (e) {\n  // Try to extract JSON from markdown code blocks if Claude wrapped it\n  const jsonMatch = textContent.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    scriptData = JSON.parse(jsonMatch[1].trim());\n  } else {\n    throw new Error('Failed to parse Claude response as JSON: ' + textContent.substring(0, 200));\n  }\n}\n\nreturn [{\n  json: {\n    title: scriptData.title,\n    script: scriptData.script,\n    description: scriptData.description,\n    hashtags: scriptData.hashtags,\n    hashtagString: scriptData.hashtags.join(' ')\n  }\n}];"
+      },
+      "id": "parse-script",
+      "name": "Parse Script JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.heygen.com/v2/video/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.HEYGEN_API_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_inputs\": [{\n    \"character\": {\n      \"type\": \"avatar\",\n      \"avatar_id\": \"{{$env.HEYGEN_AVATAR_ID}}\",\n      \"avatar_style\": \"normal\"\n    },\n    \"voice\": {\n      \"type\": \"text\",\n      \"voice_id\": \"{{$env.HEYGEN_VOICE_ID}}\",\n      \"input_text\": {{ JSON.stringify($json.script) }},\n      \"speed\": 1.0\n    },\n    \"background\": {\n      \"type\": \"color\",\n      \"value\": \"#ffffff\"\n    }\n  }],\n  \"dimension\": {\n    \"width\": 1080,\n    \"height\": 1920\n  },\n  \"title\": {{ JSON.stringify($json.title) }}\n}"
+      },
+      "id": "heygen-generate",
+      "name": "HeyGen — Generate Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": {
+          "value": "={{$env.GOOGLE_SHEET_ID}}"
+        },
+        "sheetName": "Topics",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "rendering",
+            "video_id": "={{ $json.data.video_id }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "save-video-id",
+      "name": "Save Video ID",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1540, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "wait-render",
+      "name": "Wait 60s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1760, 200],
+      "webhookId": "wait-for-render"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.heygen.com/v1/video_status.get?video_id={{ $('HeyGen — Generate Video').item.json.data.video_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$env.HEYGEN_API_KEY}}" }
+          ]
+        }
+      },
+      "id": "heygen-status",
+      "name": "HeyGen — Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 200]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "leftValue": "", "typeValidation": "strict" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data.status }}",
+                    "rightValue": "completed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputLabel": "Completed"
+            },
+            {
+              "conditions": {
+                "options": { "leftValue": "", "typeValidation": "strict" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data.status }}",
+                    "rightValue": "failed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputLabel": "Failed"
+            }
+          ],
+          "fallbackOutput": {
+            "renameOutput": true,
+            "outputLabel": "Still Processing"
+          }
+        }
+      },
+      "id": "status-switch",
+      "name": "Check Render Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store video URL and prepare for distribution\nconst statusData = $input.first().json;\nreturn [{\n  json: {\n    video_url: statusData.data.video_url,\n    video_id: statusData.data.id,\n    duration: statusData.data.duration,\n    thumbnail_url: statusData.data.thumbnail_url,\n    // Carry forward script data\n    title: $('Parse Script JSON').item.json.title,\n    description: $('Parse Script JSON').item.json.description,\n    hashtagString: $('Parse Script JSON').item.json.hashtagString\n  }\n}];"
+      },
+      "id": "prepare-distribution",
+      "name": "Prepare Distribution Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/social-media-posting/{{$env.GHL_LOCATION_ID}}/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.GHL_ACCESS_TOKEN}}" },
+            { "name": "Version", "value": "2021-07-28" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"accountIds\": [\"{{$env.GHL_YOUTUBE_ACCOUNT_ID}}\"],\n  \"summary\": \"{{ $json.title }}\\n\\n{{ $json.description }}\\n\\n{{ $json.hashtagString }}\",\n  \"mediaUrls\": [\"{{ $json.video_url }}\"],\n  \"postType\": \"video\"\n}"
+      },
+      "id": "ghl-youtube",
+      "name": "GHL — Post YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, -20]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/social-media-posting/{{$env.GHL_LOCATION_ID}}/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.GHL_ACCESS_TOKEN}}" },
+            { "name": "Version", "value": "2021-07-28" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"accountIds\": [\"{{$env.GHL_INSTAGRAM_ACCOUNT_ID}}\"],\n  \"summary\": \"{{ $json.description }}\\n\\n{{ $json.hashtagString }}\",\n  \"mediaUrls\": [\"{{ $json.video_url }}\"],\n  \"postType\": \"reel\"\n}"
+      },
+      "id": "ghl-instagram",
+      "name": "GHL — Post Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/social-media-posting/{{$env.GHL_LOCATION_ID}}/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.GHL_ACCESS_TOKEN}}" },
+            { "name": "Version", "value": "2021-07-28" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"accountIds\": [\"{{$env.GHL_TIKTOK_ACCOUNT_ID}}\"],\n  \"summary\": \"{{ $json.description }}\\n\\n{{ $json.hashtagString }}\",\n  \"mediaUrls\": [\"{{ $json.video_url }}\"],\n  \"postType\": \"video\"\n}"
+      },
+      "id": "ghl-tiktok",
+      "name": "GHL — Post TikTok",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/social-media-posting/{{$env.GHL_LOCATION_ID}}/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{$env.GHL_ACCESS_TOKEN}}" },
+            { "name": "Version", "value": "2021-07-28" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"accountIds\": [\"{{$env.GHL_LINKEDIN_ACCOUNT_ID}}\"],\n  \"summary\": \"{{ $json.title }}\\n\\n{{ $json.description }}\",\n  \"mediaUrls\": [\"{{ $json.video_url }}\"],\n  \"postType\": \"video\"\n}"
+      },
+      "id": "ghl-linkedin",
+      "name": "GHL — Post LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 340]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": {
+          "value": "={{$env.GOOGLE_SHEET_ID}}"
+        },
+        "sheetName": "Topics",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "posted",
+            "video_url": "={{ $('Prepare Distribution Data').item.json.video_url }}",
+            "posted_at": "={{ new Date().toISOString() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "final-update",
+      "name": "Status → Posted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2860, 160],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": {
+          "value": "={{$env.GOOGLE_SHEET_ID}}"
+        },
+        "sheetName": "Topics",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "failed",
+            "error": "={{ $json.data?.error?.detail || 'HeyGen render failed' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "handle-failure",
+      "name": "Status → Failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2420, 340],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron 4x Daily": {
+      "main": [[{ "node": "Get Next Topic", "type": "main", "index": 0 }]]
+    },
+    "Get Next Topic": {
+      "main": [[{ "node": "Topic Found?", "type": "main", "index": 0 }]]
+    },
+    "Topic Found?": {
+      "main": [
+        [{ "node": "Status → Scripting", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Status → Scripting": {
+      "main": [[{ "node": "Claude — Generate Script", "type": "main", "index": 0 }]]
+    },
+    "Claude — Generate Script": {
+      "main": [[{ "node": "Parse Script JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse Script JSON": {
+      "main": [[{ "node": "HeyGen — Generate Video", "type": "main", "index": 0 }]]
+    },
+    "HeyGen — Generate Video": {
+      "main": [[{ "node": "Save Video ID", "type": "main", "index": 0 }]]
+    },
+    "Save Video ID": {
+      "main": [[{ "node": "Wait 60s", "type": "main", "index": 0 }]]
+    },
+    "Wait 60s": {
+      "main": [[{ "node": "HeyGen — Check Status", "type": "main", "index": 0 }]]
+    },
+    "HeyGen — Check Status": {
+      "main": [[{ "node": "Check Render Status", "type": "main", "index": 0 }]]
+    },
+    "Check Render Status": {
+      "main": [
+        [{ "node": "Prepare Distribution Data", "type": "main", "index": 0 }],
+        [{ "node": "Status → Failed", "type": "main", "index": 0 }],
+        [{ "node": "Wait 60s", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Distribution Data": {
+      "main": [[
+        { "node": "GHL — Post YouTube", "type": "main", "index": 0 },
+        { "node": "GHL — Post Instagram", "type": "main", "index": 0 },
+        { "node": "GHL — Post TikTok", "type": "main", "index": 0 },
+        { "node": "GHL — Post LinkedIn", "type": "main", "index": 0 }
+      ]]
+    },
+    "GHL — Post YouTube": {
+      "main": [[{ "node": "Status → Posted", "type": "main", "index": 0 }]]
+    },
+    "GHL — Post Instagram": {
+      "main": [[{ "node": "Status → Posted", "type": "main", "index": 0 }]]
+    },
+    "GHL — Post TikTok": {
+      "main": [[{ "node": "Status → Posted", "type": "main", "index": 0 }]]
+    },
+    "GHL — Post LinkedIn": {
+      "main": [[{ "node": "Status → Posted", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "video-pipeline" },
+    { "name": "production" }
+  ]
+}
