@@ -99,6 +99,15 @@ export default function Home() {
                 social campaigns across every platform you&apos;re on.
               </p>
             </div>
+            <div className="why-card">
+              <div className="icon">📊</div>
+              <h3>You&apos;ll know what&apos;s working</h3>
+              <p>
+                We deliver the analytics on every video we produce — views, watch time, engagement,
+                and clicks — so you see exactly what&apos;s working and what&apos;s not, and every
+                batch gets smarter.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -125,6 +134,7 @@ export default function Home() {
                 <li>Guided creative brief on order</li>
                 <li>Your tone, your style, your brand</li>
                 <li>Delivered ready to post</li>
+                <li>Analytics report on all 10 videos</li>
               </ul>
               <Link href="/order?package=starter" className="btn btn-ghost">
                 Choose Starter
@@ -144,6 +154,7 @@ export default function Home() {
                 <li>Kick-off creative briefing session</li>
                 <li>Agency briefing to launch your strategy</li>
                 <li>Monthly content refresh aligned to campaigns</li>
+                <li>Monthly analytics on every video — double down on what works</li>
                 <li>Priority production queue</li>
               </ul>
               <Link href="/order?package=monthly" className="btn btn-primary">
@@ -159,6 +170,7 @@ export default function Home() {
               <div className="price-detail">one year · paid in advance</div>
               <ul>
                 <li>Everything in the Growth Plan</li>
+                <li>Monthly analytics on every video</li>
                 <li>Full year locked in, one payment</li>
                 <li>Save $989 vs. paying monthly</li>
                 <li>Kick-off creative &amp; agency briefing</li>
@@ -201,8 +213,11 @@ export default function Home() {
             </div>
             <div className="step">
               <div className="step-num">4</div>
-              <h3>You post &amp; grow</h3>
-              <p>Delivered ready to publish on TikTok, Reels, Shorts, and beyond.</p>
+              <h3>Post, measure &amp; grow</h3>
+              <p>
+                Delivered ready to publish — then we hand you the analytics on every video, so you
+                know what&apos;s working and what&apos;s not.
+              </p>
             </div>
           </div>
           <div style={{ textAlign: 'center', marginTop: 48 }}>
