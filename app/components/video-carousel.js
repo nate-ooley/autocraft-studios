@@ -14,11 +14,36 @@ const VIDEOS = [
 
 export default function VideoCarousel() {
   const [index, setIndex] = useState(0);
+  const [muted, setMuted] = useState(true);
   const touchX = useRef(null);
+  const videoRef = useRef(null);
   const count = VIDEOS.length;
   const current = VIDEOS[index];
 
   const go = (dir) => setIndex((i) => (i + dir + count) % count);
+
+  // React doesn't reliably sync the `muted` prop to the DOM, so set it via ref.
+  // If the browser blocks unmuted playback, fall back to muted instead of freezing.
+  function attachVideo(el) {
+    videoRef.current = el;
+    if (!el) return;
+    el.muted = muted;
+    el.play().catch(() => {
+      el.muted = true;
+      setMuted(true);
+      el.play().catch(() => {});
+    });
+  }
+
+  function toggleSound() {
+    const next = !muted;
+    setMuted(next);
+    const el = videoRef.current;
+    if (el) {
+      el.muted = next;
+      if (!next) el.play().catch(() => {});
+    }
+  }
 
   function onTouchStart(e) {
     touchX.current = e.touches[0].clientX;
@@ -47,6 +72,7 @@ export default function VideoCarousel() {
           {current ? (
             <video
               key={current.src}
+              ref={attachVideo}
               className="phone-video"
               src={current.src}
               autoPlay
@@ -63,6 +89,28 @@ export default function VideoCarousel() {
             </div>
           )}
           {current && <div className="phone-overlay">{current.title}</div>}
+          {current && (
+            <button
+              type="button"
+              className="phone-sound"
+              aria-label={muted ? 'Unmute video' : 'Mute video'}
+              onClick={toggleSound}
+            >
+              {muted ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              ) : (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              )}
+            </button>
+          )}
           <div className="phone-home-indicator" />
         </div>
         <div className="phone-badge badge-1">

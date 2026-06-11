@@ -284,6 +284,30 @@ a {
   background: radial-gradient(circle at 35% 35%, #2a3138, #0a0c0f 70%);
 }
 
+.phone-sound {
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 4;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.phone-sound:hover {
+  background: rgba(0, 0, 0, 0.55);
+  transform: scale(1.08);
+}
+
 .phone-home-indicator {
   position: absolute;
   bottom: 8px;
