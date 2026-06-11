@@ -3,6 +3,8 @@
 Customer-facing order site for short-form video production packages, with a guided
 creative-brief questionnaire and an admin dashboard backed by SQLite.
 
+**Full architecture documentation:** [docs/SITE-ARCHITECTURE.md](docs/SITE-ARCHITECTURE.md)
+
 ## Packages
 
 | Package | Price | Includes |
