@@ -1,0 +1,18 @@
+{
+  "name": "auto-craft-studios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auto Craft Studios — short-form video production order site",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^22.2.0"
+  }
+}
