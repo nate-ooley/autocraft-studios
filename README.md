@@ -41,14 +41,19 @@ If unset, it falls back to the development default `autocraft2026` — **change 
 
 ## Database
 
-SQLite file at `data/autocraft.db` (created automatically, gitignored).
+**Turso / libSQL** (hosted SQLite) in production; a local SQLite file
+(`data/autocraft.db`, gitignored) in dev — same driver and SQL either way.
 
-- `orders` — order ref, package, contact info, status, timestamp
-- `briefs` — the creative brief answers (main character, tone, inspiration, goal,
-  audience, platforms, product focus, key message, CTA, music, brand assets,
-  things to avoid, notes) plus a full `answers_json` copy
+- Production: set `DATABASE_URL` + `DATABASE_AUTH_TOKEN` (from `turso db create` /
+  `turso db tokens create`). Already configured in Vercel.
+- Local: leave those unset — it falls back to `data/autocraft.db` automatically.
 
-Inspect it with: `sqlite3 data/autocraft.db 'SELECT * FROM orders;'`
+Tables:
+- `orders` — order ref, package, contact, status, **payment_status, amount_total,
+  currency, stripe ids, paid_at**, timestamp
+- `briefs` — the creative brief answers plus a full `answers_json` copy
+
+Inspect production with: `turso db shell autocraft-studios 'SELECT * FROM orders;'`
 
 ## Stripe payments
 
@@ -71,6 +76,11 @@ If `STRIPE_SECRET_KEY` is unset, orders are still captured (marked Unpaid) and t
 buyer is told you'll reach out to confirm payment.
 
 Test cards: `4242 4242 4242 4242`, any future expiry, any CVC.
+
+**Currently in test mode.** To take real payments: set `STRIPE_SECRET_KEY` to your
+`sk_live_` key in Vercel, register a new webhook endpoint in **live** mode (a
+test-mode webhook secret won't validate live events), update
+`STRIPE_WEBHOOK_SECRET`, and redeploy.
 
 ## Notes
 - The creative brief is stored both as structured columns and raw JSON, so it can feed

@@ -17,7 +17,7 @@ the studio an admin dashboard to run production from.
 | Framework | Next.js 15 (App Router) | Server components + API routes in one deployable app |
 | UI | React 19, plain CSS (`app/globals.css`) | No CSS framework — one stylesheet, full design control |
 | Fonts | Poppins (headings), Nunito (body) via `next/font/google` | Matches autocraftstudios.com brand typography |
-| Database | SQLite via `better-sqlite3` | Zero-config persistence; synchronous API suits the order volume |
+| Database | Turso / libSQL (`@libsql/client`) | Hosted SQLite — durable across Vercel's stateless functions; same SQL dialect as local dev (file fallback) |
 | Payments | Stripe Checkout (hosted) | No card data ever touches the app; PCI burden stays with Stripe |
 | Hosting | Vercel (project `autocraft-studios`) | Serverless deploy from the repo |
 
@@ -186,20 +186,32 @@ Details:
   so `capSubscriptionAt12Months()` sets `cancel_at` (start + 12 months) on the
   subscription after payment. Called from both the success page and the webhook;
   idempotent (skips if `cancel_at` already set).
+- **Sale details stored on payment** — `saleDetailsFromSession()` extracts
+  amount, currency, payment intent, and subscription id; `markPaidBySession()`
+  writes them with a `paid_at` stamp. Idempotent: the success page and the webhook
+  both call it, COALESCE keeps the first paid write.
 - **No key configured** → `getStripe()` returns null, orders are captured as
   Unpaid, the buyer sees "we'll reach out to confirm payment." The site never
   breaks for a missing key.
 - **Webhook** (`/api/stripe/webhook`) verifies the `stripe-signature` header
-  against `STRIPE_WEBHOOK_SECRET`; returns 501 when unconfigured.
+  against `STRIPE_WEBHOOK_SECRET`; returns 501 when unconfigured, 400 on bad
+  signature, 500 on a handler error (so Stripe retries rather than dropping a sale).
 - Test card: `4242 4242 4242 4242`, any future expiry/CVC.
+- **Status: wired and verified in TEST mode** on production (June 13, 2026). To
+  take real money, swap `STRIPE_SECRET_KEY` to the `sk_live_` key AND register a
+  new webhook endpoint in **live** mode (test webhook secrets don't validate live
+  events), then update `STRIPE_WEBHOOK_SECRET` and redeploy.
 
 ## 8. Auth (admin)
 
-Deliberately minimal: `POST /api/admin/login` compares the password to
-`ADMIN_PASSWORD` and sets an httpOnly, SameSite=Lax cookie (30 days). Server
-components and admin APIs check the cookie via `lib/auth.js`. Local fallback
-password is `autocraft2026`; production uses the `ADMIN_PASSWORD` env var set in
-Vercel. Single-admin by design — revisit if more operators need access.
+`POST /api/admin/login` checks the password (constant-time compare) against
+`ADMIN_PASSWORD` — **no hardcoded fallback**, so a misconfigured deploy fails
+closed. On success it sets an httpOnly, SameSite=Lax cookie holding an
+**HMAC-signed, 30-day-expiring session token** (not the password itself), marked
+Secure over HTTPS. `lib/auth.js` verifies the token signature + expiry on every
+admin request. The login route has best-effort per-IP rate limiting. Local dev
+uses `autocraft2026`; production uses a strong `ADMIN_PASSWORD` in Vercel.
+Single-admin by design.
 
 ## 9. Deployment
 
@@ -214,18 +226,23 @@ Vercel. Single-admin by design — revisit if more operators need access.
 | Variable | Status | Purpose |
 |---|---|---|
 | `ADMIN_PASSWORD` | ✅ set (production) | Admin dashboard login |
-| `STRIPE_SECRET_KEY` | ⬜ pending | Enables Checkout (also set locally in `.env.local`) |
-| `STRIPE_WEBHOOK_SECRET` | ⬜ pending | Webhook signature verification |
+| `DATABASE_URL` | ✅ set (prod + dev) | Turso libsql:// connection URL |
+| `DATABASE_AUTH_TOKEN` | ✅ set (prod + dev) | Turso auth token |
+| `STRIPE_SECRET_KEY` | ✅ set — **test key** (production) | Enables Checkout; swap to `sk_live_` to go live |
+| `STRIPE_WEBHOOK_SECRET` | ✅ set — **test webhook** (production) | Webhook signature verification |
 
-### Known limitations (accepted for the feedback phase)
+Database provisioned with the `turso` CLI: `turso db create autocraft-studios`,
+then `turso db tokens create autocraft-studios`. Locally, leave the `DATABASE_*`
+vars unset to use the `./data/autocraft.db` file.
 
-1. **Ephemeral database on Vercel.** Serverless filesystems don't persist, so the
-   SQLite file lives in `/tmp` and orders evaporate when instances recycle. Fine
-   for demo feedback; **must move to a hosted DB (Neon/Turso/Vercel Postgres)
-   before real orders.** The swap is contained to `lib/db.js`.
-2. **Stripe key not yet configured** — orders capture as Unpaid (see §7).
-3. **No email notifications** — new orders are only visible in `/admin`. A
+### Known limitations / next steps
+
+1. **Stripe is in TEST mode.** Real cards aren't charged yet — see §7 for the
+   go-live swap (live key + live-mode webhook).
+2. **No email notifications** — new orders are only visible in `/admin`. A
    transactional email (Resend/Postmark) on order creation is the natural next add.
+3. **Rate limiting is per-instance** (in-memory). Fine at this scale; move to a
+   shared store (Upstash) if abuse becomes a concern.
 
 ## 10. Hero video pipeline
 
