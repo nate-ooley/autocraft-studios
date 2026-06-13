@@ -35,6 +35,9 @@ body {
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* clip (not hidden) so a stray-wide child can't bleed off-screen without
+     breaking the sticky nav */
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4 {
@@ -1210,4 +1213,20 @@ a {
   .choice-grid { grid-template-columns: 1fr; }
   .brief-grid { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr; }
+}
+
+/* On narrow screens the fixed-width arrows + phone exceed the viewport and push
+   the hero off the right edge. Drop to a single centered column, let the phone
+   scale down, and rely on swipe + dots (arrows hidden). */
+@media (max-width: 560px) {
+  .carousel {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .carousel-arrow {
+    display: none;
+  }
+  .phone {
+    width: min(280px, 100%);
+  }
 }
