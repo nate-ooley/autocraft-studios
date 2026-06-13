@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { isAdmin } from '@/lib/auth';
-import { listOrders } from '@/lib/db';
+import { listOrders, getSalesSummary } from '@/lib/db';
 import LoginForm from './login-form';
 import StatusButtons from './status-buttons';
 
@@ -56,7 +56,9 @@ export default async function AdminPage() {
     );
   }
 
-  const orders = listOrders();
+  const [orders, summary] = await Promise.all([listOrders(), getSalesSummary()]);
+  const usd = (cents) =>
+    (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
   return (
     <>
@@ -71,6 +73,25 @@ export default async function AdminPage() {
       <div className="admin-wrap">
         <div className="admin-head">
           <h1>Orders ({orders.length})</h1>
+        </div>
+
+        <div className="stats-row stats-row-4">
+          <div className="stat-card">
+            <div className="stat-num">{summary.totalOrders}</div>
+            <div className="stat-cap">Total orders</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-num">{summary.paidOrders}</div>
+            <div className="stat-cap">Paid</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-num">{usd(summary.collectedCents)}</div>
+            <div className="stat-cap">Collected to date</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-num">{usd(summary.bookedCents)}</div>
+            <div className="stat-cap">Booked value</div>
+          </div>
         </div>
 
         {orders.length === 0 && (
@@ -96,7 +117,9 @@ export default async function AdminPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className={`status-pill pay-${o.payment_status || 'unpaid'}`}>
                   {o.payment_status === 'paid'
-                    ? '✓ Paid'
+                    ? o.amount_total
+                      ? `✓ Paid ${usd(o.amount_total)}${o.package_id === 'monthly' ? '/mo' : ''}`
+                      : '✓ Paid'
                     : o.payment_status === 'pending'
                       ? 'Payment Pending'
                       : 'Unpaid'}

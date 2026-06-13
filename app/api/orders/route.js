@@ -26,7 +26,7 @@ export async function POST(req) {
   }
 
   try {
-    const { orderRef, orderId } = createOrder({ packageId, contact, brief: brief || {} });
+    const { orderRef, orderId } = await createOrder({ packageId, contact, brief: brief || {} });
 
     let paymentUrl = null;
     try {
@@ -37,7 +37,7 @@ export async function POST(req) {
         origin: req.nextUrl.origin,
       });
       if (session) {
-        setStripeSession(orderId, session.id);
+        await setStripeSession(orderId, session.id);
         paymentUrl = session.url;
       }
     } catch (e) {

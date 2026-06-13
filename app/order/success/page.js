@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getStripe, capSubscriptionAt12Months } from '@/lib/stripe';
+import { getStripe, capSubscriptionAt12Months, saleDetailsFromSession } from '@/lib/stripe';
 import { markPaidBySession } from '@/lib/db';
 
 export const metadata = {
@@ -14,9 +14,9 @@ async function verifyPayment(sessionId) {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     const paid = session.payment_status === 'paid' || session.status === 'complete';
     if (paid) {
-      const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
-      markPaidBySession(session.id, subId || null);
-      if (subId) await capSubscriptionAt12Months(subId);
+      const details = saleDetailsFromSession(session);
+      await markPaidBySession(session.id, details);
+      if (details.subscriptionId) await capSubscriptionAt12Months(details.subscriptionId);
     }
     return paid;
   } catch (e) {

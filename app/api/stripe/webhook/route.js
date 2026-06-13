@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getStripe, capSubscriptionAt12Months } from '@/lib/stripe';
+import { getStripe, capSubscriptionAt12Months, saleDetailsFromSession } from '@/lib/stripe';
 import { markPaidBySession } from '@/lib/db';
 
-// Stripe webhook — configure the endpoint in the Stripe dashboard pointing at
-// /api/stripe/webhook and set STRIPE_WEBHOOK_SECRET. The success page already
-// verifies payment on redirect; this catches buyers who never return to the site.
+// Stripe webhook — the authoritative confirmation of payment. Configure the
+// endpoint in the Stripe dashboard pointing at /api/stripe/webhook and set
+// STRIPE_WEBHOOK_SECRET. The success page also verifies on redirect, but this
+// catches buyers who pay and never return to the site.
 export async function POST(req) {
   const stripe = getStripe();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -23,11 +24,17 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
-    markPaidBySession(session.id, subId || null);
-    if (subId) await capSubscriptionAt12Months(subId);
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const details = saleDetailsFromSession(session);
+      await markPaidBySession(session.id, details);
+      if (details.subscriptionId) await capSubscriptionAt12Months(details.subscriptionId);
+    }
+  } catch (e) {
+    // Return 500 so Stripe retries — better than silently dropping a paid sale.
+    console.error('Webhook handling failed:', e);
+    return NextResponse.json({ error: 'Handler error.' }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

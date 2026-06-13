@@ -19,7 +19,8 @@ export default function LoginForm() {
     if (res.ok) {
       router.refresh();
     } else {
-      setError('Incorrect password.');
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || 'Incorrect password.');
     }
   }
 
