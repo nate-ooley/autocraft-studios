@@ -19,7 +19,7 @@ to a human):
 | Order URL | `{{ORDER_URL}}` | the /order link above (or custom domain) |
 | Turnaround / SLA | **1 week or less** | ✅ set |
 | Revisions policy | **$50/hour for edits & revisions** | ✅ set |
-| Support email | `{{SUPPORT_EMAIL}}` | your inbox |
+| Support email | **support@autocraftstudios.com** | ✅ set |
 | Booking link | `{{BOOKING_LINK}}` | GHL calendar link for discovery calls |
 | Business hours | `{{HOURS}}` | for voice fallback |
 
@@ -94,7 +94,7 @@ to a human):
 > - **Never** give legal, tax, or financial advice, or discuss competitors' pricing.
 > - For **billing problems, refunds, complaints, or anything you're unsure about**,
 >   don't guess — collect their email and say a team member will follow up
->   (or hand off to a human / {{SUPPORT_EMAIL}}).
+>   (or hand off to a human / support@autocraftstudios.com).
 > - Stay on topic: AutoCraft Studios video production. Politely redirect off-topic
 >   chats.
 > - Keep replies short. One clear next step per message.
