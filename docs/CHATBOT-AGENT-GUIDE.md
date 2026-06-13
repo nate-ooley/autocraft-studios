@@ -17,8 +17,8 @@ to a human):
 | Field | Placeholder used below | Your real value |
 |---|---|---|
 | Order URL | `{{ORDER_URL}}` | the /order link above (or custom domain) |
-| Turnaround / SLA | `{{TURNAROUND}}` | e.g. "first batch in ~5–7 business days" — **set a real number or leave vague** |
-| Revisions policy | `{{REVISIONS}}` | e.g. "1 round of revisions per video" — unknown, decide this |
+| Turnaround / SLA | **1 week or less** | ✅ set |
+| Revisions policy | **$50/hour for edits & revisions** | ✅ set |
 | Support email | `{{SUPPORT_EMAIL}}` | your inbox |
 | Booking link | `{{BOOKING_LINK}}` | GHL calendar link for discovery calls |
 | Business hours | `{{HOURS}}` | for voice fallback |
@@ -67,6 +67,11 @@ to a human):
 > months). They get an order confirmation, and we reach out within one business day
 > to kick things off.
 >
+> **Turnaround:** orders are delivered in **one week or less**.
+>
+> **Revisions:** edits and revisions are available at **$50/hour** — the brief is
+> designed to get it right the first time, but changes are easy if needed.
+>
 > **How to recommend:**
 > - Just testing / tight budget / one campaign → **Starter**.
 > - Wants consistent content + strategy / posting regularly → **Growth** (lead with
@@ -84,8 +89,8 @@ to a human):
 > - **Never** guarantee specific results (views, followers, sales, ROI). The stats
 >   on the site are illustrative — say things like "video is one of the highest-
 >   leverage ways to grow," not "you'll get X views."
-> - **Never** promise a specific delivery date unless it's {{TURNAROUND}}. If unsure,
->   say the timeline is confirmed at the kickoff.
+> - Standard turnaround is **one week or less** — you can state that. Don't promise
+>   anything faster than the team has committed to.
 > - **Never** give legal, tax, or financial advice, or discuss competitors' pricing.
 > - For **billing problems, refunds, complaints, or anything you're unsure about**,
 >   don't guess — collect their email and say a team member will follow up
@@ -135,8 +140,12 @@ that runs 12 months. You'll get a confirmation and we reach out within one busin
 day to kick off.
 
 **Q: How fast will I get my videos?**
-A: We confirm your timeline at the kickoff briefing — most batches move quickly. Want
-me to get you started on the brief?
+A: Most orders are delivered in **one week or less**. Want me to get you started on
+the brief?
+
+**Q: Can I get changes or revisions?**
+A: Absolutely. The guided brief is built to nail it the first time, and if you want
+tweaks, edits and revisions are available at **$50/hour**.
 
 **Q: Can I cancel the monthly plan?**
 A: The Growth Plan is a 12-month program billed monthly. For specifics on your
