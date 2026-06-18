@@ -210,7 +210,7 @@ closed. On success it sets an httpOnly, SameSite=Lax cookie holding an
 **HMAC-signed, 30-day-expiring session token** (not the password itself), marked
 Secure over HTTPS. `lib/auth.js` verifies the token signature + expiry on every
 admin request. The login route has best-effort per-IP rate limiting. Local dev
-uses `autocraft2026`; production uses a strong `ADMIN_PASSWORD` in Vercel.
+uses a dev placeholder password; production uses a strong `ADMIN_PASSWORD` in Vercel.
 Single-admin by design.
 
 ## 9. Deployment
